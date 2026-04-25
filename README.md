@@ -51,6 +51,9 @@ cabal build
 docker-compose up -d
 docker-compose exec sl bash
 ```
+## Membros
+[Gabriel Vilas](https://github.com/vilas000)
+[Marcus Vinicius](https://github.com/MarcusViniAraujo)
 
 ```
 
