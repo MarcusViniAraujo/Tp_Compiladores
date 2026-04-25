@@ -1,0 +1,211 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[brazil]{babel}
+\usepackage[T1]{fontenc}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{float}
+
+
+\geometry{a4paper, left=3cm, right=2cm, top=3cm, bottom=2cm}
+
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\newcommand{\mylambda}{$\lambda$}
+
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true,
+    numbers=left,
+    numbersep=5pt,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    tabsize=2
+}
+
+\lstset{style=mystyle}
+
+\title{Relatório de Projeto: Compilador SL - Etapa 3}
+\author{
+    Gabriel Vilas Novas Sousa \\
+    Matrícula: 23.1.4018 \\
+    \\
+    Marcus Vinícius Araújo \\
+    Matrícula: 23.1.4129 \\
+    \\
+    BCC328 - Construção de Compiladores I - DECOM/UFOP
+}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Este relatório apresenta a etapa final do desenvolvimento do compilador SL, focando na inferência de tipos e na geração de código WebAssembly (Wasm). O projeto consolidou o sistema de tipos baseado em unificação para suportar a tradução da Árvore de Sintaxe Abstrata (AST) para o formato textual do WebAssembly ($WAT$), priorizando a representação de dados em inteiros de 32 bits ($i32$) para operações aritméticas e lógicas. Devido às restrições de escopo e à arquitetura da linguagem SL, a geração de código concentrou-se na estabilidade do fluxo de controle e na manipulação de memória linear para vetores unidimensionais, omitindo o suporte a tipos de ponto flutuante em favor de uma execução íntegra no paradigma de inteiros. O trabalho resultou em um pipeline funcional capaz de compilar algoritmos estruturados para um formato executável em navegadores modernos, documentando os desafios técnicos de mapear uma linguagem de alto nível para uma arquitetura baseada em pilha e as limitações inerentes à tradução de tipos compostos para o ambiente binário da web.
+\end{abstract}
+
+
+\newpage
+\tableofcontents
+\newpage
+
+\section{Introdução}
+
+Este relatório detalha a terceira e última etapa do desenvolvimento do compilador para a linguagem SL. Após a consolidação da análise semântica e do ambiente de interpretação nas etapas anteriores, o foco deste trabalho final consiste na implementação da geração de código alvo para o formato WebAssembly (Wasm), permitindo a execução de programas SL de forma nativa e eficiente em ambientes de navegadores modernos.
+
+Nesta fase conclusiva, o projeto expandiu suas funcionalidades para atender as seguintes condições:
+\begin{itemize}
+    \item \textbf{Inferência de Tipos para Código Alvo:} Refinamento do algoritmo de unificação para realizar o mapeamento entre os tipos da linguagem SL e os tipos básicos do WebAssembly, priorizando o uso de inteiros de 32 bits (\texttt{i32}) para representar dados e valores lógicos.
+    \item \textbf{Geração de Código WebAssembly (WAT):} Desenvolvimento de um gerador de código que traduz a Árvore de Sintaxe Abstrata (AST) para o formato textual do WebAssembly (\textit{S-Expressions}), estruturando a lógica imperativa em uma arquitetura baseada em pilha.
+    \item \textbf{Gestão de Memória Linear:} Implementação do mapeamento de vetores unidimensionais para a memória linear do Wasm, permitindo o armazenamento e a recuperação de dados estruturados através de cálculos de deslocamento (\textit{offset}).
+    \item \textbf{Execução de Fluxos de Controle:} Tradução de estruturas de repetição (\texttt{while}) e condicionais (\texttt{if-else}) para os blocos de controle nativos do WebAssembly (\texttt{loop}, \texttt{block} e \texttt{br}), garantindo a integridade do fluxo de execução em algoritmos complexos.
+\end{itemize}
+
+O desenvolvimento permanece fundamentado na linguagem Haskell, utilizando sua expressividade para converter as estruturas semânticas da AST em instruções de baixo nível. Embora o suporte a tipos de ponto flutuante (\textit{floats}) e matrizes multidimensionais tenha sido mantido fora do escopo em favor da estabilidade dos inteiros, o sistema resultante demonstra a viabilidade de compilar uma linguagem estruturada completa para o ecossistema da web.
+
+\section{Implementação Técnica e Limitações do Sistema}
+
+\subsection{O que foi feito}
+
+\subsubsection{Geração de Código WebAssembly (Backend)}
+\begin{itemize}
+    \item \textbf{Tradução para Arquitetura de Pilha:} Implementação do gerador de código que converte a Árvore de Sintaxe Abstrata (AST) em instruções \textit{S-Expressions} (\texttt{.wat}). O sistema realiza o mapeamento de operações aritméticas e lógicas para instruções nativas do Wasm, como \texttt{i32.add}, \texttt{i32.sub} e \texttt{i32.lt\_s}, respeitando rigorosamente a natureza de empilhamento da máquina virtual.
+    
+    \item \textbf{Mapeamento de Variáveis e Escopo:} As variáveis da linguagem SL foram mapeadas para as seções \texttt{local} e \texttt{global} do WebAssembly. Através da inferência de tipos, o compilador garante que cada identificador receba a tipagem correta (inteiros de 32 bits) no cabeçalho das funções geradas, permitindo a persistência de dados durante a execução.
+    
+    \item \textbf{Gestão de Memória Linear para Vetores:} Implementação do suporte a arrays unidimensionais utilizando a \texttt{Memory} linear do Wasm. Foi desenvolvida a lógica de cálculo de endereçamento (índice $\times$ 4 bytes) para as instruções \texttt{i32.load} e \texttt{i32.store}, possibilitando que algoritmos como o da mochila manipulem dados estruturados diretamente no espaço de endereçamento da web.
+    
+    \item \textbf{Estruturas de Controle de Fluxo:} Tradução de laços \texttt{while} e condicionais \texttt{if} utilizando os blocos \texttt{loop}, \texttt{block} e instruções de desvio (\texttt{br} e \texttt{br\_if}). Essa estrutura garante a integridade do fluxo de execução sem comprometer a estabilidade da pilha de operandos.
+\end{itemize}
+
+
+\subsection{O que não foi feito}
+\begin{itemize}
+    \item \textbf{Suporte a Tipos de Ponto Flutuante (Floats):} Devido à complexidade adicional na gestão de instruções específicas (\texttt{f32}) e na coerção de tipos entre inteiros e reais, o suporte a floats foi mantido fora do escopo. O compilador foca na precisão e estabilidade de inteiros de 32 bits.
+    
+    \item \textbf{Fluxo de Saída e Persistência:} Atualmente, o compilador não realiza a escrita direta de arquivos binários (\texttt{.wasm}) ou textuais (\texttt{*.wat}) no sistema de arquivos. A saída do código gerado é direcionada estritamente para o \textit{standard output} (terminal). Para a execução em um \textit{runtime} WebAssembly, o usuário deve redirecionar manualmente essa saída para um arquivo, o que caracteriza a ausência de um driver de automação de IO nesta versão.
+
+    \item \textbf{Tradução Direta sem Otimizações:} O código gerado é uma tradução literal da Árvore de Sintaxe Abstrata (AST). Não foram implementadas passagens de otimização de código intermediário, como \textit{Constant Folding} (pré-cálculo de constantes) ou eliminação de código morto. O foco foi garantir a fidelidade semântica entre o código SL e a pilha do Wasm, priorizando a corretude em detrimento da performance máxima do binário gerado.
+    
+    
+    \item \textbf{Matrizes e Memória Dinâmica Complexa:} A gestão de memória linear foi restrita a vetores unidimensionais. A implementação de matrizes multidimensionais exigiria um sistema de alocação e cálculo de \textit{offsets} aninhados que não foi integrado nesta versão do gerador de código.
+    
+    \item \textbf{Coleta de Lixo (Garbage Collection):} O sistema aloca espaço na memória linear para vetores, mas não implementa mecanismos de desalocação (\textit{free}) ou coleta de lixo. Em programas de longa duração com alocações massivas, isso poderia resultar em esgotamento da memória disponível no módulo Wasm.
+\end{itemize}
+
+\section{Uso de Inteligência Artificial: Prompts e Resultados}
+
+A utilização da Inteligência Artificial foi fundamental para compreender as peculiaridades da plataforma WebAssembly, que opera sob um paradigma fundamentalmente distinto (orientado à pilha e com memória bruta) das linguagens convencionais.
+
+\begin{description}
+    \item[Consulta 01: Paradigma de Máquina de Pilha] \hfill \\
+    \textbf{Objetivo:} Entender como traduzir expressões recursivas de árvore para sequências lineares do WebAssembly.\\
+    \textbf{Prompt:} \textit{"Como o WebAssembly executa expressões matemáticas, dado que ele não possui registradores tradicionais como x86 ou ARM?"}\\
+    \textbf{Resultado e Aplicação:} A IA explicou o modelo \textit{Stack Machine} do WASM, no qual operandos são empurrados (\textit{push}) sequencialmente para a pilha e as instruções os consomem. Essa explicação direcionou o desenvolvimento da função geradora (\texttt{genExp}), que agora aplica a travessia Pós-Ordem na AST, emitindo strings literais em uma Mônada \texttt{Writer}.
+
+    \vspace{0.5cm}
+    \hrule
+    \vspace{0.5cm}
+    
+    \item[Consulta 02: Controle de Fluxo Iterativo] \hfill \\
+    \textbf{Objetivo:} Implementar o laço \texttt{while}, inexistente na sintaxe nativa do WASM.\\
+    \textbf{Prompt:} \textit{"Como posso gerar código em WebAssembly (WAT) para um laço 'while', sabendo que o WASM usa controle de fluxo estruturado ao invés de GOTO arbitrário?"}\\
+    \textbf{Resultado e Aplicação:} Recebemos a estrutura de projeto padrão da W3C para laços: o aninhamento de um \texttt{loop} dentro de um \texttt{block}. A lógica de inverter a condição (com \texttt{i32.eqz}) para pular fora (\texttt{br\_if \$exit}) foi incorporada diretamente na geração da AST, permitindo a execução iterativa perfeitamente aninhada.
+
+    \vspace{0.5cm}
+    \hrule
+    \vspace{0.5cm}
+    
+    \item[Consulta 03: Gestão de Memória Linear em WASM] \hfill \\
+    \textbf{Objetivo:} Suportar Arrays, sabendo que o WebAssembly não possui o conceito abstrato de matrizes nem o comando \texttt{new}.\\
+    \textbf{Prompt:} \textit{"Como eu aloco e manipulo um Array de inteiros em WebAssembly Text Format, considerando que só tenho acesso a uma memória linear de bytes?"}\\
+    \textbf{Resultado e Aplicação:} Esta foi a consulta mais impactante do projeto. A IA nos orientou a implementar o padrão \textit{Bump Pointer}. Nós instanciamos a diretiva \texttt{(memory \$0 1)} e criamos a variável global \texttt{\$heap\_pointer}. O backend passou a tratar variáveis de array não como seus valores diretos, mas como "Ponteiros" (\texttt{i32}) apontando para a memória linear, lendo e escrevendo com \texttt{i32.load} e \texttt{i32.store}.
+
+    \vspace{0.5cm}
+    \hrule
+    \vspace{0.5cm}
+    
+    \item[Consulta 04: Cópia vs. Referência] \hfill \\
+    \textbf{Objetivo:} Entender a mudança de comportamento de variáveis em funções entre a Etapa 2 (Interpretador) e a Etapa 3 (WASM).\\
+    \textbf{Prompt:} \textit{"Por que, quando eu passo um array para uma função no WebAssembly e altero um índice, ele altera o valor original fora da função, mas no meu Interpretador (Haskell) isso não acontecia?"}\\
+    \textbf{Resultado e Aplicação:} A IA elucidou a diferença conceitual fundamental: o Interpretador Haskell trabalha por Passagem por Valor (copiando os estados imutáveis). O WebAssembly, devido à arquitetura de \textit{Heap} global e uso de ponteiros (\texttt{i32}), opera via Passagem por Referência real para matrizes. Isso foi documentado como uma característica da linguagem e serviu de aprendizado valioso sobre como o \textit{backend} altera a semântica da linguagem em tempo de execução.
+\end{description}
+
+\section{Divisão de tarefas}
+
+O desenvolvimento desta etapa do projeto foi realizado de forma colaborativa e síncrona, com o auxílio da extensão \textit{VS Code Live Share}. Essa ferramenta possibilitou a programação simultânea em um mesmo ambiente, permitindo a discussão em tempo real das decisões de implementação, bem como a integração imediata entre as diferentes camadas do compilador. 
+
+A abordagem colaborativa contribuiu para maior consistência no código desenvolvido, agilizando a identificação de erros e a validação das funcionalidades implementadas.
+
+
+\section{Resultados e Discussão}
+
+\subsection{Instruções de Uso}
+\begin{itemize}
+    \item \textbf{Compilação:} \texttt{cabal build}
+    \item \textbf{Testes Automatizados dos analizadores lexico e sintatico:} \texttt{cabal test}
+    \item \textbf{Análise Léxica:} \texttt{cabal run slc --- ---lexer arquivo.sl}
+    \item \textbf{Análise Sintática:} \texttt{cabal run slc --- ---parser arquivo.sl}
+    \item \textbf{Pretty:} \texttt{cabal run slc --- ---pretty arquivo.sl}
+    \item \textbf{Análise Semântica (Type Check):} \texttt{cabal run slc --- ---check arquivo.sl}
+    \item \textbf{Execução via Interpretador:} \texttt{cabal run slc --- ---run arquivo.sl}
+    \item \textbf{Geração de Código:} \texttt{cabal run slc --- ---wat arquivo.sl}
+\end{itemize}
+
+\subsection{Testes Realizados e Paridade de Execução}
+
+Para a validação da geração de código WebAssembly, adotou-se uma estratégia de regressão e paridade. Todas as instâncias previamente validadas no interpretador foram submetidas ao gerador de código para garantir que a tradução para a arquitetura de pilha preservasse a semântica original dos algoritmos.
+
+\begin{enumerate}
+    \item \textbf{Complexidade de Controle e Memória} (\texttt{teste\_mochila.sl}): Utilizado como o principal teste de estresse para o backend Wasm. Validou-se se os laços \texttt{while} aninhados geravam corretamente os blocos \texttt{loop} e \texttt{br\_if}, e se o cálculo de \textit{offset} na memória linear permitia a persistência dos dados da tabela DP.
+    
+    \item \textbf{Ordenação e Acesso a Vetores} (\texttt{teste\_ordenacao.sl}): Validou a integridade das instruções \texttt{i32.load} e \texttt{i32.store} durante trocas de elementos no \textit{Selection Sort}. Este teste foi crucial para confirmar que o endereçamento (\textit{index * 4}) estava operando corretamente na memória linear.
+
+    \item \textbf{Passagem de Parâmetros e Pilha de Chamada} (\texttt{teste\_pilha.sl}): Testou a geração de assinaturas de função e a alocação de variáveis locais no Wasm. Validou-se a capacidade do compilador de passar referências (ponteiros para a memória linear) em funções que operam sobre vetores.
+
+    \item \textbf{Resiliência do Type Checker}: Re-execução dos testes de erro (\texttt{TypeMismatch}, \texttt{UndefinedVar}) para garantir que o compilador aborte a geração de código Wasm caso a árvore semântica esteja corrompida, prevenindo a criação de binários inválidos.
+\end{enumerate}
+
+\subsection{Limitações e Desafios Técnicos}
+
+Nesta fase final, as limitações refletem os desafios de mapear uma linguagem de alto nível para uma arquitetura de baixo nível baseada em pilha.
+
+\begin{description}
+    \item[Restrição a Tipos Inteiros (\texttt{i32}):] O gerador de código foi consolidado estritamente para o tipo \texttt{i32}. A ausência de suporte para pontos flutuantes (\texttt{f32}) deve-se à complexidade de implementar a coerção de tipos e o polimorfismo de instruções no \textit{backend}, optando-se por garantir a estabilidade aritmética em operações com inteiros.
+    
+    \item[Endereçamento de Memória Linear Unidimensional:] A gestão da \textit{Memory} do WebAssembly foi implementada para suportar apenas vetores unidimensionais. O cálculo de \textit{offset} é linear ($index \times 4$), o que impede o suporte nativo a matrizes ou estruturas de dados aninhadas, que exigiriam um sistema de alocação dinâmica de ponteiros mais sofisticado.
+    
+    \item[Fluxo de Saída e Persistência:] O compilador opera como um tradutor de terminal, emitindo o código \textit{S-Expressions} (\texttt{.wat}) via \textit{standard output}. Não foi implementado um driver de IO para a criação direta de arquivos binários (\texttt{.wasm}), exigindo o uso de ferramentas externas (como o \texttt{wat2wasm}) para a finalização do processo de compilação.
+    
+    \item[Ausência de Otimizações de Pilha:] O código gerado realiza uma tradução direta e literal da AST. Isso resulta em uma manipulação de pilha redundante em alguns cenários (ex: múltiplos \texttt{local.get} e \texttt{local.set} sucessivos), uma vez que não foram aplicadas técnicas de \textit{Peephole Optimization} ou \textit{Constant Folding} no estágio de emissão de código.
+    
+    \item[Gestão de Memória Estática:] Embora o sistema aloque espaço na memória linear para vetores, não existe um mecanismo de \textit{Garbage Collection} ou desalocação manual. A memória é tratada como um bloco contínuo e crescente, o que limita a execução de programas com ciclos de vida de memória muito extensos ou alocações dinâmicas repetitivas.
+\end{description}
+
+\section{Conclusão}
+
+A conclusão desta terceira etapa marca a finalização do ciclo de desenvolvimento do compilador SL, consolidando a transição de um ambiente de interpretação para a geração efetiva de código objeto em WebAssembly (Wasm). A capacidade de traduzir uma linguagem de alto nível para o formato textual \texttt{.wat} validou não apenas a robustez do \textit{frontend} e do \textit{middle-end} desenvolvidos nas etapas anteriores, mas também a eficácia do mapeamento semântico para arquiteturas baseadas em pilha.
+
+A utilização de Haskell permitiu gerenciar a complexidade da tradução da Árvore de Sintaxe Abstrata (AST) para instruções de baixo nível de forma segura e modular. A integração da memória linear do Wasm para a manipulação de vetores e a implementação de estruturas de controle de fluxo nativas permitiram que algoritmos clássicos, como o problema da mochila e o \textit{Selection Sort}, fossem executados com fidelidade fora do ambiente Haskell.
+
+Embora o sistema apresente limitações, como a especialização estrita em tipos inteiros (\texttt{i32}) e a ausência de otimizações de código intermediário, o projeto atingiu seu objetivo pedagógico e técnico primordial: demonstrar o fluxo completo de compilação. O resultado final é um pipeline funcional que transforma código fonte estruturado em um formato executável moderno, estabelecendo uma base sólida para futuras expansões em direção a otimizações de performance e suporte a tipos de dados mais complexos.
+
+\end{document}

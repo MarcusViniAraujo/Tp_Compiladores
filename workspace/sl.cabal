@@ -1,0 +1,87 @@
+cabal-version:       2.4
+name:                sl
+version:             0.1.0.0
+
+library
+  hs-source-dirs:      src
+
+  exposed-modules:
+      Frontend.Syntax.SlSyntax
+      Frontend.Lexer.Token
+      Frontend.Lexer.SlLexer
+      Frontend.Parser.SlParser
+      Frontend.Parser.AstToTree
+      Frontend.Pretty.SlPretty
+      Semantics.SlTypeEnv
+      Semantics.SlTypeChecker
+      Semantics.SlInterpreter
+      Backend.SlWatGenerator
+
+  default-language:    Haskell2010
+
+  build-depends:
+      base       >= 4.7 && < 5
+    , array      >= 0.5
+    , pretty     >= 1.1
+    , containers >= 0.6
+    , mtl         >= 2.2
+
+  build-tool-depends:
+      alex:alex
+    , happy:happy
+
+  ghc-options:
+      -Wall
+      -Wno-unused-matches
+      -Wno-name-shadowing
+
+
+executable slc
+  main-is:             Main.hs
+  hs-source-dirs:      src
+
+  default-language:    Haskell2010
+
+  other-modules:
+      Frontend.Syntax.SlSyntax
+      Frontend.Lexer.Token
+      Frontend.Lexer.SlLexer
+      Frontend.Parser.SlParser
+      Frontend.Parser.AstToTree
+      Frontend.Pretty.SlPretty
+      Semantics.SlTypeEnv
+      Semantics.SlTypeChecker
+      Semantics.SlInterpreter
+      Backend.SlWatGenerator
+
+  build-depends:
+      base       >= 4.7 && < 5
+    , sl
+    , array
+    , pretty
+    , containers
+    , mtl
+
+
+
+test-suite sl-tests
+  type: exitcode-stdio-1.0
+  hs-source-dirs: test
+  main-is: Spec.hs
+  default-language: Haskell2010
+
+  other-modules:
+      LexerSpec
+      ParserSpec
+
+  build-depends:
+      base
+    , sl
+    , array
+    , pretty
+    , containers
+    , tasty
+    , tasty-hunit
+    , mtl
+
+ 
